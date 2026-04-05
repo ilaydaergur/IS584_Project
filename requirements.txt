@@ -1,0 +1,8 @@
+ir-datasets>=0.5.11
+python-terrier>=0.11.0
+pandas>=2.2.2
+numpy>=1.26.4
+matplotlib>=3.8.4
+tqdm>=4.66.4
+sentence-transformers>=2.7.0
+torch>=2.2.2

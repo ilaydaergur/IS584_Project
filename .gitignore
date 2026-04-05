@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pkl
+*.zip
+*.jsonl
+.ir_datasets/
+outputs/
