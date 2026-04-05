@@ -1,7 +1,10 @@
 __pycache__/
 *.pyc
-*.pkl
-*.zip
-*.jsonl
+*.swp
+*.swo
+*~
+.DS_Store
+
 .ir_datasets/
-outputs/
+*.jsonl
+*.zip
