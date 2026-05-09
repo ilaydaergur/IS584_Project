@@ -5,6 +5,14 @@ __pycache__/
 *~
 .DS_Store
 
+# ir_datasets cache
 .ir_datasets/
 *.jsonl
 *.zip
+
+# PyTerrier index (large binary files)
+index/
+
+# Intermediate run files (large)
+outputs/bm25_run.csv
+outputs/reranker_run.csv
