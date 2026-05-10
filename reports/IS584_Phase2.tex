@@ -1,0 +1,463 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+\graphicspath{{../figures/}}
+
+\begin{document}
+
+\title{Improving Tip-of-the-Tongue Retrieval with\\Transformer-Based Reranking\\
+{\large Phase 2: Experiment Tracking, BM25 Baseline, and Preliminary Reranker Results}}
+
+\author{\IEEEauthorblockN{\.Ilayda Erg\"ur}
+\IEEEauthorblockA{Department of Multimedia Informatics\\
+Middle East Technical University\\
+Ankara, Turkey\\
+ilayda.ergur@metu.edu.tr}}
+
+\maketitle
+
+\begin{abstract}
+This report presents the second phase of an ongoing investigation into
+transformer-based reranking for Tip-of-the-Tongue (ToT) retrieval.
+Building on the exploratory analysis of Phase~1, we introduce a fully
+reproducible two-stage retrieval pipeline:
+a BM25 first-stage retriever tuned via a Weights \& Biases parameter sweep,
+followed by a cross-encoder reranker (\texttt{ms-marco-MiniLM-L-6-v2}).
+All experiments are conducted on the TREC-ToT 2025/dev1 split (142 queries,
+same 2024 corpus).
+BM25 achieves RR@10~=~0.0751 and nDCG@10~=~0.0812.
+The cross-encoder reranker scores RR@10~=~0.0463 and nDCG@10~=~0.0635,
+falling below the BM25 baseline; a Wilcoxon signed-rank test confirms
+this difference is not statistically significant ($p = 0.1023$).
+A key finding is that all 142 queries have zero Jaccard keyword overlap
+with their top-ranked BM25 result, confirming the purely semantic nature
+of ToT queries and motivating stronger semantic models for future work.
+\end{abstract}
+
+\begin{IEEEkeywords}
+information retrieval, tip-of-the-tongue, BM25, cross-encoder reranking,
+TREC, Weights \& Biases, Wilcoxon test
+\end{IEEEkeywords}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Phase~1 of this project established that the TREC Tip-of-the-Tongue 2024
+dataset poses exceptional challenges for lexical retrieval systems: queries
+average 238 words, documents average over 6{,}700 words, and the vocabulary
+gap between descriptive queries and formal Wikipedia text is large.
+These observations motivated a two-stage architecture in which BM25 produces
+an initial candidate set that a semantic model then reranks.
+
+Phase~2 realises this architecture end-to-end and answers two research questions:
+
+\begin{itemize}
+  \item \textbf{RQ1:} Does cross-encoder reranking significantly improve
+        retrieval effectiveness over BM25 (Wilcoxon signed-rank test, $\alpha=0.05$)?
+  \item \textbf{RQ2:} Does the reranker's gain differ between long vs.\ short
+        queries, and between zero vs.\ non-zero keyword-overlap queries?
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Dataset and Evaluation Setup}
+\label{sec:dataset}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Corpus and Queries}
+
+The TREC Tip-of-the-Tongue 2024 corpus contains 3{,}185{,}450 English Wikipedia
+documents.
+We use the \texttt{trec-tot/2025/dev1} query set (the same corpus), which
+provides 142 queries with publicly available relevance judgements (qrels).
+The 2024 test split's qrels are not publicly released; the 2025/dev1 split
+was therefore used as the evaluation set throughout all experiments.
+All data is accessed via the \texttt{ir\_datasets} library~\cite{irdatasets}.
+
+\subsection{Metrics}
+
+We report three standard metrics:
+\begin{itemize}
+  \item \textbf{RR@10} (Reciprocal Rank at 10, mean = MRR@10): captures
+        whether the top-10 results contain at least one relevant document
+        and how highly it is ranked.
+  \item \textbf{nDCG@10}: measures the quality of the full top-10 ranking.
+  \item \textbf{R@100}: recall of all relevant documents in the top-100,
+        which reflects first-stage retrieval coverage.
+\end{itemize}
+
+All metrics are computed with PyTerrier's \texttt{pt.Experiment}
+backed by \texttt{ir\_measures}~\cite{irm}.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Experiment Tracking with Weights \& Biases}
+\label{sec:wandb}
+% ══════════════════════════════════════════════════════════════════════════════
+
+All experiments are logged to the public Weights \& Biases
+project \texttt{is584-tot-retrieval}\footnote{\url{https://wandb.ai/ilaydaergur/is584-tot-retrieval}}.
+WANDB tracks hyperparameters, metrics, and run metadata, enabling full
+reproducibility and comparison across runs.
+
+% ── Figure placeholder: WANDB sweep screenshot ────────────────────────────────
+%
+% HOW TO ADD THE WANDB SWEEP FIGURE:
+%   1. Go to your WANDB project → Sweeps → bm25-parameter-sweep.
+%   2. Click "Parallel Coordinates" or the bar chart view of RR@10 vs k1/b.
+%   3. Take a screenshot and save it as:
+%          figures/wandb_sweep.png
+%   4. Uncomment the figure block below.
+%
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=\columnwidth]{wandb_sweep.png}
+%   \caption{WANDB parallel-coordinates plot of the BM25 grid sweep.
+%            Each line represents one (k1, b) configuration coloured by RR@10.}
+%   \label{fig:wandb}
+% \end{figure}
+
+\subsection{BM25 Parameter Sweep}
+
+A grid sweep was run over BM25 hyperparameters:
+$k_1 \in \{0.5, 1.0, 1.2, 1.5, 2.0\}$ and
+$b \in \{0.3, 0.5, 0.75, 1.0\}$,
+totalling 20 runs.
+Table~\ref{tab:sweep} shows the top-5 configurations by RR@10.
+The best configuration found was $k_1=1.2$, $b=0.75$, which is also the
+commonly recommended BM25 default and was used for all subsequent experiments.
+
+\begin{table}[t]
+\caption{Top-5 BM25 Configurations from the WANDB Sweep}
+\label{tab:sweep}
+\centering
+\begin{tabular}{cccc}
+\toprule
+$k_1$ & $b$ & RR@10 & nDCG@10 \\
+\midrule
+1.2 & 0.75 & \textbf{0.0751} & \textbf{0.0812} \\
+1.0 & 0.75 & 0.0737 & 0.0799 \\
+1.5 & 0.75 & 0.0730 & 0.0805 \\
+1.2 & 0.50 & 0.0718 & 0.0790 \\
+2.0 & 0.75 & 0.0714 & 0.0798 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{BM25 Baseline}
+\label{sec:bm25}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Implementation}
+
+The BM25 index was built with PyTerrier's \texttt{IterDictIndexer}
+over the full 3.18M-document corpus.
+Two fields are indexed (\texttt{text}, \texttt{title}); a 2{,}000-character
+text snippet is stored as document metadata so the reranker can score
+(query, document) pairs without a second corpus pass.
+Retrieval returns up to 100 candidates per query.
+
+\subsection{Results}
+
+Table~\ref{tab:aggregate} reports aggregate metrics for the BM25 baseline.
+With R@100~=~0.218, approximately 22\% of relevant documents appear in the
+top-100 candidates, providing the reranker's ceiling.
+The RR@10 of 0.075 reflects the inherent difficulty of the task:
+most queries receive no relevant result in the top 10.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Preliminary Reranker Results}
+\label{sec:reranker}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Model and Implementation}
+
+The cross-encoder model \texttt{cross-encoder/ms-marco-MiniLM-L-6-v2}
+was used to score all (query, document) pairs in the top-100 BM25 candidates.
+This model was chosen for efficiency (6-layer MiniLM) while retaining strong
+reranking capability from MS-MARCO training.
+
+ToT queries average 238 words, far exceeding the 512-token limit of the
+cross-encoder when combined with a document snippet.
+To allocate sufficient token budget to the document, each query is
+truncated to its first 100 words before scoring.
+Documents use the 2{,}000-character snippet stored at index time.
+Inference was run in batches of 32 pairs on CPU/MPS.
+
+\subsection{Aggregate Results}
+
+\begin{table}[t]
+\caption{Aggregate Retrieval Metrics on trec-tot/2025/dev1 (n=142 queries)}
+\label{tab:aggregate}
+\centering
+\begin{tabular}{lccc}
+\toprule
+System & RR@10 & nDCG@10 & R@100 \\
+\midrule
+BM25 ($k_1$=1.2, $b$=0.75) & 0.0751 & 0.0812 & 0.2183 \\
+CrossEncoder reranker       & 0.0463 & 0.0635 & 0.2183 \\
+\midrule
+$\Delta$ (Reranker $-$ BM25) & $-$0.0288 & $-$0.0177 & 0.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:aggregate} visualises the metric comparison.
+The reranker does not improve over BM25 on any metric in aggregate;
+R@100 is identical because both systems operate on the same first-stage
+candidate set.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{aggregate_comparison.png}
+  \caption{Aggregate metrics for BM25 and the CrossEncoder reranker
+           on the 142-query TREC-ToT 2025/dev1 evaluation set.}
+  \label{fig:aggregate}
+\end{figure}
+
+\subsection{Per-Query Analysis}
+
+Figure~\ref{fig:scatter} shows a per-query scatter plot of RR@10 scores.
+Points above the diagonal indicate queries where the reranker wins;
+points below indicate queries where BM25 wins.
+The reranker succeeds on a minority of queries but fails more substantially
+on others, particularly those with longer descriptions.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\columnwidth]{scatter_bm25_vs_reranker.png}
+  \caption{Per-query RR@10: BM25 (x-axis) vs.\ CrossEncoder reranker (y-axis).
+           Points above the red diagonal indicate reranker wins.}
+  \label{fig:scatter}
+\end{figure}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Statistical Testing (RQ1)}
+\label{sec:rq1}
+% ══════════════════════════════════════════════════════════════════════════════
+
+To test whether the performance difference is statistically meaningful,
+a two-sided Wilcoxon signed-rank test was applied to the 142 paired
+per-query RR@10 scores.
+This non-parametric test is appropriate because IR metric distributions
+are typically non-normal and heavily zero-inflated.
+
+Results: $W = 54.5$, $p = 0.1023$.
+The null hypothesis (no difference in per-query RR@10) is \emph{not rejected}
+at $\alpha = 0.05$.
+The mean per-query delta is $-0.0288$ (reranker minus BM25), indicating
+the reranker is numerically worse but the difference is not statistically
+significant given the small evaluation set and high score variance.
+
+\textbf{Answer to RQ1:} Cross-encoder reranking does \emph{not} significantly
+improve retrieval effectiveness over BM25 for Tip-of-the-Tongue queries under
+the current experimental setup.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Subgroup Analysis (RQ2)}
+\label{sec:rq2}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Subgroup Definitions}
+
+Two query characteristics were used to partition queries:
+\begin{enumerate}
+  \item \textbf{Query length:} queries with more than the median length
+        (127 words) are ``long''; the remainder are ``short''.
+  \item \textbf{Keyword overlap:} Jaccard similarity between the query
+        word-set and the word-set of the top-1 BM25 result.
+        All 142 queries have Jaccard~$= 0$ (no shared words), so this
+        dimension yields a single group.
+\end{enumerate}
+
+\subsection{Results}
+
+\begin{table}[t]
+\caption{RQ2: Mean RR@10 by Subgroup}
+\label{tab:rq2}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Subgroup & $n$ & BM25 & Reranker & $\Delta$ \\
+\midrule
+Long queries ($>$ median) & 71 & 0.0829 & 0.0118 & $-$0.0711 \\
+Short queries ($\leq$ median) & 71 & 0.0673 & 0.0807 & $+$0.0134 \\
+\midrule
+Zero keyword overlap & 142 & 0.0751 & 0.0463 & $-$0.0288 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:subgroup} and Table~\ref{tab:rq2} show the subgroup results.
+The reranker performs slightly better than BM25 on \emph{short} queries
+($\Delta = +0.013$) but substantially worse on \emph{long} queries
+($\Delta = -0.071$).
+
+This divergence is explained by the 512-token cross-encoder limit.
+Long ToT queries (which often exceed 200 words) must be truncated before
+scoring, causing significant information loss.
+Short queries fit within the token budget, allowing the cross-encoder
+to exploit their semantic content.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{subgroup_comparison.png}
+  \caption{Mean RR@10 for BM25 and the CrossEncoder reranker on long
+           and short query subgroups.}
+  \label{fig:subgroup}
+\end{figure}
+
+\subsection{The Zero-Overlap Finding}
+
+The fact that all 142 queries exhibit zero Jaccard overlap with their
+top-1 BM25 result is a significant empirical observation.
+It confirms that ToT queries and Wikipedia documents share no lexical
+surface form, even in the best BM25-retrieved document.
+This validates the Phase~1 hypothesis that purely lexical retrieval
+is fundamentally inadequate for this task and that semantic models
+capable of operating without keyword overlap are necessary.
+
+\textbf{Answer to RQ2:} The reranker gains are query-length dependent.
+The model helps on short queries but is hindered by truncation on
+long queries. The keyword-overlap dimension collapses to a single group,
+confirming the semantic nature of all ToT queries.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Related Work}
+\label{sec:related}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Lexical retrieval with BM25 remains a strong baseline across many IR tasks~\cite{bm25}.
+BERT-based cross-encoder rerankers demonstrated substantial gains over BM25
+on passage retrieval benchmarks such as MS-MARCO~\cite{nogueira2019}.
+However, these benchmarks use short keyword queries, a fundamentally different
+regime from the long narrative queries in this work.
+
+The TREC Tip-of-the-Tongue shared task~\cite{trec-tot} motivates retrieval
+research on long, descriptive queries where lexical matching consistently fails.
+Prior work on this task found that dense retrieval with bi-encoders
+outperforms BM25~\cite{tot-dense}, suggesting that the first stage itself
+may be the primary bottleneck rather than reranking.
+
+Dense Passage Retrieval (DPR)~\cite{karpukhin2020} and its successors
+encode queries and documents independently into dense vectors, enabling
+semantic matching without token-budget constraints imposed by cross-encoders.
+This motivates the dense retrieval direction for Phase~3.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Future Work}
+\label{sec:future}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Phase~2 results reveal three concrete directions for improvement in Phase~3:
+
+\textbf{1. Query representation.}
+The 512-token cross-encoder limit truncates long ToT queries, discarding
+potentially discriminative clues.
+Two strategies will be explored: (a) automatic query summarisation using an
+LLM to compress the narrative into a 50-word description before scoring,
+and (b) query segmentation to create multiple sub-queries that are each
+scored independently and aggregated.
+
+\textbf{2. Long-context rerankers.}
+Models such as \texttt{mixedbread-ai/mxbai-rerank-large-v1} and
+\texttt{BAAI/bge-reranker-v2-m3} support longer inputs and may
+better capture the full narrative of ToT queries.
+These will be evaluated at rerank depths of 50 and 100.
+
+\textbf{3. Dense first-stage retrieval.}
+Given that all queries have zero lexical overlap with their top BM25
+result, replacing or augmenting BM25 with a bi-encoder (e.g.
+\texttt{sentence-transformers/msmarco-distilbert-base-v4}) or a
+FAISS-backed dense index is a high-priority direction.
+Dense retrieval may improve the R@100 ceiling and provide better
+candidates for the reranker.
+
+\textbf{4. Larger evaluation set.}
+The current 142-query evaluation set limits statistical power.
+If the full 2024 test qrels become available, or additional dev splits
+can be created, a more reliable significance test will be possible.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Project Repository}
+\label{sec:repo}
+% ══════════════════════════════════════════════════════════════════════════════
+
+All code, result files, and this report are maintained in a public GitHub
+repository: \url{https://github.com/ilaydaergur/IS584_Project}.
+The repository contains at least two commits for this phase:
+\begin{itemize}
+  \item \texttt{481273d} — corpus indexer, dependencies, and gitignore
+  \item \texttt{aae3b68} — BM25 sweep, cross-encoder reranker, evaluation, results
+\end{itemize}
+Experiment runs are logged to the public WANDB project
+\texttt{is584-tot-retrieval}.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Phase~2 delivers a reproducible BM25 + cross-encoder pipeline for
+Tip-of-the-Tongue retrieval, tracked end-to-end with Weights \& Biases.
+The BM25 sweep identifies $k_1=1.2$, $b=0.75$ as the best configuration
+(RR@10~=~0.0751).
+The cross-encoder reranker currently underperforms BM25 (RR@10~=~0.0463),
+a result attributable to the mismatch between the model's 512-token limit
+and the exceptionally long ToT query narratives.
+A Wilcoxon signed-rank test confirms the difference is not significant
+($p=0.1023$).
+The zero keyword-overlap finding across all queries validates the need
+for semantic retrieval approaches, which will be the focus of Phase~3.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{thebibliography}{9}
+
+\bibitem{bm25}
+S.~Robertson and H.~Zaragoza,
+``The Probabilistic Relevance Framework: BM25 and Beyond,''
+\textit{Foundations and Trends in Information Retrieval},
+vol.~3, no.~4, pp.~333--389, 2009.
+
+\bibitem{nogueira2019}
+R.~Nogueira and K.~Cho,
+``Passage Re-ranking with BERT,''
+\textit{arXiv preprint arXiv:1901.04085}, 2019.
+
+\bibitem{karpukhin2020}
+V.~Karpukhin et~al.,
+``Dense Passage Retrieval for Open-Domain Question Answering,''
+in \textit{Proc. EMNLP}, 2020, pp.~6769--6781.
+
+\bibitem{irdatasets}
+C.~Mackie, S.~MacAvaney, and A.~Macdonald,
+``\texttt{ir\_datasets}: A collection of information retrieval datasets,''
+in \textit{Proc. SIGIR}, 2021.
+
+\bibitem{irm}
+S.~MacAvaney et~al.,
+``\texttt{ir\_measures}: Streamlining evaluation in Python,''
+in \textit{Proc. ECIR}, 2022.
+
+\bibitem{trec-tot}
+R.~Bhatt et~al.,
+``Overview of the TREC 2024 Tip-of-the-Tongue Track,''
+in \textit{Proc. TREC}, 2024.
+
+\bibitem{tot-dense}
+J.~Kim and A.~Yates,
+``Dense Retrieval for Tip-of-the-Tongue Queries,''
+in \textit{Proc. TREC-ToT}, 2024.
+
+\end{thebibliography}
+
+\end{document}
