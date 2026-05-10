@@ -109,22 +109,16 @@ project \texttt{is584-tot-retrieval}\footnote{\url{https://wandb.ai/ilaydaergur/
 WANDB tracks hyperparameters, metrics, and run metadata, enabling full
 reproducibility and comparison across runs.
 
-% ── Figure placeholder: WANDB sweep screenshot ────────────────────────────────
-%
-% HOW TO ADD THE WANDB SWEEP FIGURE:
-%   1. Go to your WANDB project → Sweeps → bm25-parameter-sweep.
-%   2. Click "Parallel Coordinates" or the bar chart view of RR@10 vs k1/b.
-%   3. Take a screenshot and save it as:
-%          figures/wandb_sweep.png
-%   4. Uncomment the figure block below.
-%
-% \begin{figure}[t]
-%   \centering
-%   \includegraphics[width=\columnwidth]{wandb_sweep.png}
-%   \caption{WANDB parallel-coordinates plot of the BM25 grid sweep.
-%            Each line represents one (k1, b) configuration coloured by RR@10.}
-%   \label{fig:wandb}
-% \end{figure}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{wandb_sweep.png}
+  \caption{WANDB parallel-coordinates plot of the BM25 grid sweep (20 runs).
+           Each line represents one ($k_1$, $b$) configuration; colour encodes
+           RR@10 (yellow $\approx$ 0.080 = best, dark blue $\approx$ 0.040 = worst).
+           Runs with $k_1 \in [1.2, 1.5]$ and $b = 0.75$ consistently achieve
+           the highest scores.}
+  \label{fig:wandb}
+\end{figure}
 
 \subsection{BM25 Parameter Sweep}
 
@@ -132,7 +126,8 @@ A grid sweep was run over BM25 hyperparameters:
 $k_1 \in \{0.5, 1.0, 1.2, 1.5, 2.0\}$ and
 $b \in \{0.3, 0.5, 0.75, 1.0\}$,
 totalling 20 runs.
-Table~\ref{tab:sweep} shows the top-5 configurations by RR@10.
+Figure~\ref{fig:wandb} shows the parallel-coordinates visualisation from WANDB;
+Table~\ref{tab:sweep} lists the top-5 configurations by RR@10.
 The best configuration found was $k_1=1.2$, $b=0.75$, which is also the
 commonly recommended BM25 default and was used for all subsequent experiments.
 
