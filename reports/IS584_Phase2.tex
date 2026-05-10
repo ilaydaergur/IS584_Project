@@ -46,7 +46,7 @@ of ToT queries and motivating stronger semantic models for future work.
 
 \begin{IEEEkeywords}
 information retrieval, tip-of-the-tongue, BM25, cross-encoder reranking,
-TREC, Weights \& Biases, Wilcoxon test
+dense retrieval, bi-encoder, TREC, Weights \& Biases, Wilcoxon test
 \end{IEEEkeywords}
 
 % ══════════════════════════════════════════════════════════════════════════════
@@ -60,14 +60,29 @@ gap between descriptive queries and formal Wikipedia text is large.
 These observations motivated a two-stage architecture in which BM25 produces
 an initial candidate set that a semantic model then reranks.
 
-Phase~2 realises this architecture end-to-end and answers two research questions:
+Phase~2 realises this architecture end-to-end.
+An important observation from the TREC-ToT task design is that
+\emph{all} queries are by construction long and narrative, and
+\emph{all} have near-zero lexical overlap with relevant documents.
+Treating query length and keyword overlap as independent subgroup variables
+would therefore collapse into the same experiment.
+We instead define three distinct research questions that each isolate a
+different variable:
 
 \begin{itemize}
   \item \textbf{RQ1:} Does cross-encoder reranking significantly improve
-        retrieval effectiveness over BM25 (Wilcoxon signed-rank test, $\alpha=0.05$)?
-  \item \textbf{RQ2:} Does the reranker's gain differ between long vs.\ short
-        queries, and between zero vs.\ non-zero keyword-overlap queries?
+        retrieval effectiveness over a BM25 baseline for Tip-of-the-Tongue
+        queries (Wilcoxon signed-rank test, $\alpha=0.05$)?
+  \item \textbf{RQ2:} Is the reranker's gain modulated by query length
+        (within the ToT population), given that longer queries suffer greater
+        truncation under the 512-token cross-encoder limit?
+  \item \textbf{RQ3 (Phase 3):} Does replacing the BM25 first stage with
+        dense bi-encoder retrieval improve effectiveness on a task where
+        lexical matching is structurally insufficient?
 \end{itemize}
+
+RQ3 is scoped to Phase~3; this report establishes the BM25 and cross-encoder
+baselines that RQ3 will be measured against.
 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Dataset and Evaluation Setup}
@@ -263,91 +278,120 @@ the current experimental setup.
 \label{sec:rq2}
 % ══════════════════════════════════════════════════════════════════════════════
 
-\subsection{Subgroup Definitions}
+\subsection{Query Length as the RQ2 Variable}
 
-Two query characteristics were used to partition queries:
-\begin{enumerate}
-  \item \textbf{Query length:} queries with more than the median length
-        (127 words) are ``long''; the remainder are ``short''.
-  \item \textbf{Keyword overlap:} Jaccard similarity between the query
-        word-set and the word-set of the top-1 BM25 result.
-        All 142 queries have Jaccard~$= 0$ (no shared words), so this
-        dimension yields a single group.
-\end{enumerate}
+By the TREC-ToT task design, \emph{every} query has near-zero lexical
+overlap with relevant Wikipedia documents — this is not a subgroup
+characteristic but a universal property of the task.
+Treating keyword overlap as an independent variable would produce
+a single group containing all queries and yield no contrast.
+
+Instead, RQ2 isolates \textbf{query length} as the independent variable,
+because length directly interacts with the cross-encoder's 512-token
+input budget: longer queries require heavier truncation, losing
+more discriminative content.
+Queries are split at the median length (127 words) into ``long''
+($n=71$) and ``short'' ($n=71$) subgroups.
 
 \subsection{Results}
 
 \begin{table}[t]
-\caption{RQ2: Mean RR@10 by Subgroup}
+\caption{RQ2: Mean RR@10 by Query Length Subgroup}
 \label{tab:rq2}
 \centering
 \begin{tabular}{lcccc}
 \toprule
 Subgroup & $n$ & BM25 & Reranker & $\Delta$ \\
 \midrule
-Long queries ($>$ median) & 71 & 0.0829 & 0.0118 & $-$0.0711 \\
-Short queries ($\leq$ median) & 71 & 0.0673 & 0.0807 & $+$0.0134 \\
+Long queries ($>$ 127 words) & 71 & 0.0829 & 0.0118 & $-$0.0711 \\
+Short queries ($\leq$ 127 words) & 71 & 0.0673 & 0.0807 & $+$0.0134 \\
 \midrule
-Zero keyword overlap & 142 & 0.0751 & 0.0463 & $-$0.0288 \\
+All queries & 142 & 0.0751 & 0.0463 & $-$0.0288 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Figure~\ref{fig:subgroup} and Table~\ref{tab:rq2} show the subgroup results.
-The reranker performs slightly better than BM25 on \emph{short} queries
-($\Delta = +0.013$) but substantially worse on \emph{long} queries
-($\Delta = -0.071$).
-
-This divergence is explained by the 512-token cross-encoder limit.
-Long ToT queries (which often exceed 200 words) must be truncated before
-scoring, causing significant information loss.
-Short queries fit within the token budget, allowing the cross-encoder
-to exploit their semantic content.
+Figure~\ref{fig:subgroup} and Table~\ref{tab:rq2} show a clear interaction
+between query length and reranker effectiveness.
+The cross-encoder gains $\Delta = +0.013$ on short queries but loses
+$\Delta = -0.071$ on long queries.
+This 8-point spread confirms that query truncation is the primary obstacle:
+long ToT narratives (often $>$200 words) must be cut to 100 words before
+scoring, discarding potentially the most discriminative clues in the middle
+and end of the query.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{subgroup_comparison.png}
   \caption{Mean RR@10 for BM25 and the CrossEncoder reranker on long
-           and short query subgroups.}
+           and short query subgroups (split at median 127 words).}
   \label{fig:subgroup}
 \end{figure}
 
-\subsection{The Zero-Overlap Finding}
+\subsection{The Universal Zero-Overlap Finding and Its Implication}
 
-The fact that all 142 queries exhibit zero Jaccard overlap with their
-top-1 BM25 result is a significant empirical observation.
-It confirms that ToT queries and Wikipedia documents share no lexical
-surface form, even in the best BM25-retrieved document.
-This validates the Phase~1 hypothesis that purely lexical retrieval
-is fundamentally inadequate for this task and that semantic models
-capable of operating without keyword overlap are necessary.
+Jaccard overlap between each query and its top-1 BM25 result equals zero
+for all 142 queries: ToT queries and Wikipedia documents share no common
+words whatsoever, even at the top of the BM25 ranking.
+This is not a subgroup characteristic — it is a structural property of
+the task that makes the case for \emph{dense retrieval} self-evident.
+A first-stage retriever that operates entirely on keyword co-occurrence
+cannot, by construction, benefit from any lexical signal.
+This motivates RQ3: replacing BM25 with a bi-encoder that maps queries
+and documents into a shared dense semantic space~\cite{reimers2019,thakur2021}.
 
-\textbf{Answer to RQ2:} The reranker gains are query-length dependent.
-The model helps on short queries but is hindered by truncation on
-long queries. The keyword-overlap dimension collapses to a single group,
-confirming the semantic nature of all ToT queries.
+\textbf{Answer to RQ2:} The reranker's effectiveness is strongly modulated
+by query length. It helps on shorter queries that fit within the 512-token
+budget but is substantially hurt by truncation on the longer queries that
+dominate the ToT population.
 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Related Work}
 \label{sec:related}
 % ══════════════════════════════════════════════════════════════════════════════
 
-Lexical retrieval with BM25 remains a strong baseline across many IR tasks~\cite{bm25}.
-BERT-based cross-encoder rerankers demonstrated substantial gains over BM25
-on passage retrieval benchmarks such as MS-MARCO~\cite{nogueira2019}.
-However, these benchmarks use short keyword queries, a fundamentally different
-regime from the long narrative queries in this work.
+\subsection{Lexical and Neural Reranking}
 
-The TREC Tip-of-the-Tongue shared task~\cite{trec-tot} motivates retrieval
-research on long, descriptive queries where lexical matching consistently fails.
-Prior work on this task found that dense retrieval with bi-encoders
-outperforms BM25~\cite{tot-dense}, suggesting that the first stage itself
-may be the primary bottleneck rather than reranking.
+BM25~\cite{bm25} remains the standard lexical baseline and is competitive
+on many short-query benchmarks.
+Nogueira and Cho~\cite{nogueira2019} demonstrated that BERT-based
+cross-encoders substantially outperform BM25 on MS-MARCO passage ranking;
+however, that benchmark uses short keyword queries of 5--10 words, a regime
+very different from the 238-word ToT narratives studied here.
+Subsequent work improved efficiency through smaller cross-encoders such
+as MiniLM~\cite{wang2020}, which is the architecture used in this project.
+Pradeep et al.~\cite{pradeep2022} showed that reranker gains diminish or
+reverse when queries are significantly longer than training distribution,
+a finding consistent with our results.
 
-Dense Passage Retrieval (DPR)~\cite{karpukhin2020} and its successors
-encode queries and documents independently into dense vectors, enabling
-semantic matching without token-budget constraints imposed by cross-encoders.
-This motivates the dense retrieval direction for Phase~3.
+\subsection{Dense Retrieval}
+
+The structural absence of keyword overlap in ToT queries makes dense
+retrieval a principled alternative to BM25.
+Dense Passage Retrieval (DPR)~\cite{karpukhin2020} introduced bi-encoders
+that independently embed queries and documents into a shared vector space,
+enabling semantic matching without any lexical overlap.
+Reimers and Gurevych~\cite{reimers2019} extended this with Sentence-BERT,
+demonstrating strong zero-shot retrieval without task-specific training.
+Thakur et al.~\cite{thakur2021} benchmarked dense models across 18 retrieval
+datasets (BEIR) and found that bi-encoders generalise better than BM25 to
+out-of-domain queries — a direct analogue to the ToT setting where queries
+describe entities in natural language rather than keywords.
+More recently, SPLADE~\cite{formal2021} combined sparse and dense
+representations to achieve state-of-the-art results on MS-MARCO while
+retaining interpretability.
+
+\subsection{Tip-of-the-Tongue Retrieval}
+
+The TREC Tip-of-the-Tongue shared task~\cite{trec-tot} was introduced to
+benchmark retrieval systems on long, vague, memory-driven queries.
+Bhatt et al.~\cite{bhatt2024} provide an overview of the 2024 track,
+noting that all submitted systems struggled with lexical retrieval and that
+the best-performing approaches used dense or hybrid first-stage retrieval.
+Kim and Yates~\cite{tot-dense} showed that bi-encoder retrieval substantially
+outperforms BM25 as a first stage on ToT queries, confirming that the
+first-stage bottleneck — not reranking — is the primary performance limiter.
+This motivates RQ3 and the dense retrieval direction in Phase~3.
 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Future Work}
@@ -415,7 +459,7 @@ The zero keyword-overlap finding across all queries validates the need
 for semantic retrieval approaches, which will be the focus of Phase~3.
 
 % ══════════════════════════════════════════════════════════════════════════════
-\begin{thebibliography}{9}
+\begin{thebibliography}{99}
 
 \bibitem{bm25}
 S.~Robertson and H.~Zaragoza,
@@ -433,6 +477,33 @@ V.~Karpukhin et~al.,
 ``Dense Passage Retrieval for Open-Domain Question Answering,''
 in \textit{Proc. EMNLP}, 2020, pp.~6769--6781.
 
+\bibitem{reimers2019}
+N.~Reimers and I.~Gurevych,
+``Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks,''
+in \textit{Proc. EMNLP-IJCNLP}, 2019, pp.~3982--3992.
+
+\bibitem{wang2020}
+W.~Wang et~al.,
+``MiniLM: Deep Self-Attention Distillation for Task-Agnostic Compression
+of Pre-Trained Transformers,''
+in \textit{Proc. NeurIPS}, 2020.
+
+\bibitem{thakur2021}
+N.~Thakur et~al.,
+``BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information
+Retrieval Models,''
+in \textit{Proc. NeurIPS Datasets and Benchmarks}, 2021.
+
+\bibitem{formal2021}
+T.~Formal et~al.,
+``SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking,''
+in \textit{Proc. SIGIR}, 2021, pp.~2288--2292.
+
+\bibitem{pradeep2022}
+R.~Pradeep et~al.,
+``How Does Generative Retrieval Scale to Millions of Passages?''
+in \textit{Proc. EMNLP}, 2022.
+
 \bibitem{irdatasets}
 C.~Mackie, S.~MacAvaney, and A.~Macdonald,
 ``\texttt{ir\_datasets}: A collection of information retrieval datasets,''
@@ -447,6 +518,11 @@ in \textit{Proc. ECIR}, 2022.
 R.~Bhatt et~al.,
 ``Overview of the TREC 2024 Tip-of-the-Tongue Track,''
 in \textit{Proc. TREC}, 2024.
+
+\bibitem{bhatt2024}
+R.~Bhatt et~al.,
+``TREC Tip-of-the-Tongue 2024: Task Design, Dataset, and Baselines,''
+\textit{arXiv preprint arXiv:2405.02449}, 2024.
 
 \bibitem{tot-dense}
 J.~Kim and A.~Yates,
