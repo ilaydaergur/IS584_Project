@@ -1,2 +1,0 @@
-01:12:11.028 [Thread-9] WARN org.terrier.structures.BaseCompressingMetaIndex -- Structure meta reading data file directly from disk (SLOW) - try index.meta.data-source=fileinmem in the index properties file. 1.9 GiB of memory would be required.
-k1=0.5, b=0.5 → RR@10=0.0618  nDCG@10=0.0707  R@100=0.2254

@@ -1,8 +1,0 @@
-Loading weights: 100%|██████████| 100/100 [00:00<00:00, 6118.07it/s]
-BiEncoder loaded: sentence-transformers/msmarco-distilbert-base-v4  |  device: mps
-Encoding 142 queries...
-Batches: 100%|██████████| 3/3 [00:01<00:00,  2.78it/s]
-Encoding 8869 document snippets...
-Batches: 100%|██████████| 139/139 [01:45<00:00,  1.31it/s]
-Scoring pairs: 100%|██████████| 14200/14200 [00:00<00:00, 98380.91it/s]
-model=msmarco-distilbert-base-v4  depth=100  RR@10=0.0329  nDCG@10=0.0420  R@100=0.2183

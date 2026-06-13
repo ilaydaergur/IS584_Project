@@ -16,3 +16,10 @@ index/
 # Intermediate run files (large)
 outputs/bm25_run.csv
 outputs/reranker_run.csv
+outputs/biencoder_run.csv
+
+# WANDB local cache (results are on wandb.ai)
+wandb/
+
+# VSCode workspace settings
+.vscode/
