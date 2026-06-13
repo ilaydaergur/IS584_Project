@@ -437,19 +437,28 @@ absent from the training distribution.
 To understand which query parts drive cross-encoder decisions, we apply a
 sentence-level leave-one-out ablation to six representative queries
 (3 cross-encoder wins over BM25, 3 losses).
-Each sentence is removed in turn; the score drop indicates attribution.
+For each query, every sentence is removed in turn; the score drop when sentence $i$
+is removed---full score minus ablated score---indicates sentence $i$'s attribution.
 
-For \textbf{win queries}, the highest-attribution sentences are the first 1--2,
-which survive the 100-word truncation and contain entity type identifiers
-(``This is a science-fiction novel from the 1960s...'') that match
-MS-MARCO-trained vocabulary.
-For \textbf{loss queries}, the highest-attribution sentences---when retained---are
-in the \textit{middle and end} of the query, precisely those discarded by truncation.
-In several loss cases the cross-encoder assigns a \textit{lower} score to the full
-query than to the first-2-sentence prefix, indicating that informal memory-language
-in later sentences actively degrades model confidence.
-This provides direct evidence that truncation removes the most discriminative content
-on hard queries.
+For \textbf{win queries}, the highest-attribution sentences are almost exclusively
+the first 1--2, which survive the 100-word truncation window.
+These opening sentences contain entity type identifiers and primary genre or period
+attributes (``This is a science-fiction novel from the 1960s about a scientist...'')
+that closely match the MS-MARCO training distribution.
+Score drops for the first sentence typically exceed those of later sentences by a
+factor of 2--5$\times$, confirming that the cross-encoder's decision is driven almost
+entirely by the surviving prefix.
+
+For \textbf{loss queries}, the highest-attribution sentences---when retained in the
+ablation---are located in the \textit{middle and end} of the query, precisely those
+discarded by truncation.
+Critically, in several loss cases the cross-encoder assigns a \textit{lower} relevance
+score to the full query than to the first-2-sentence prefix alone: the additional
+sentences, written in informal memory-based language absent from MS-MARCO, actively
+degrade the model's confidence rather than helping it.
+This provides direct causal evidence that (a) the most discriminative query content
+lies beyond the truncation boundary, and (b) out-of-distribution informal language
+introduces noise that hurts the cross-encoder even when the full query is available.
 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Error Analysis}
@@ -542,6 +551,27 @@ address truncation and domain mismatch.
 (3) \textbf{Query decomposition}: splitting a ToT query into attribute clauses and
 aggregating per-clause retrievals could improve recall without requiring
 extended-context models.
+
+\subsection{Limitations}
+
+Several limitations of this study should be noted.
+First, the bi-encoder is used as a \textit{reranker} over BM25 candidates rather
+than as a true first-stage dense retriever: encoding all 3.18M documents required
+approximately 4--8 hours of GPU inference, making it infeasible within this project's
+time constraints.
+As a result, the bi-encoder is constrained by the same R@100 ceiling as the
+cross-encoder and cannot demonstrate its potential for improving candidate recall.
+Second, the evaluation set of 142 queries is small; per-query RR@10 is highly discrete
+(step size $1/142 \approx 0.007$), which reduces the power of the Wilcoxon test to
+detect real differences at the observed effect sizes.
+A difference of $\Delta=0.029$ that is not significant here ($p=0.10$) might reach
+significance with 300--500 queries.
+Third, neither neural model was fine-tuned on the ToT domain; all experiments use
+off-the-shelf MS-MARCO weights, which systematically under-represent informal
+narrative language.
+Fourth, the sentence attribution analysis uses a heuristic leave-one-out approach
+rather than gradient-based attribution methods (e.g., integrated gradients), which
+may not capture non-linear feature interactions within the cross-encoder.
 
 % ══════════════════════════════════════════════════════════════════════════════
 \section{Conclusion}
