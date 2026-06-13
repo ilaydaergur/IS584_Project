@@ -4,7 +4,9 @@
 **Student ID:** 2784247  
 **Course:** IS584 — Information Retrieval, METU  
 **Dataset:** TREC Tip-of-the-Tongue (ToT) 2024 corpus / 2025 dev1 queries  
-**WANDB Project:** [is584-tot-retrieval](https://wandb.ai/ilaydaergur/is584-tot-retrieval)
+**WANDB Sweep Logs:**
+- [BM25 & cross-encoder sweeps](https://api.wandb.ai/links/ilaydaergur-metu-middle-east-technical-university/9dqii7fz)
+- [Bi-encoder sweep](https://api.wandb.ai/links/ilaydaergur-metu-middle-east-technical-university/qb9nxfcj)
 
 ---
 
