@@ -1,0 +1,6 @@
+wandb_version: 1
+
+model:
+  value: sentence-transformers/msmarco-distilbert-base-v4
+rerank_depth:
+  value: 100

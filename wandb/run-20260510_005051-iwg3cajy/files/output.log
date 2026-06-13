@@ -1,0 +1,14 @@
+/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py:70: DeprecationWarning: Call to deprecated class BatchRetrieve. (use pt.terrier.Retriever() instead) -- Deprecated since version 0.11.0.
+  return pt.BatchRetrieve(
+00:50:52.782 [Thread-9] WARN org.terrier.structures.BaseCompressingMetaIndex -- Structure meta reading data file directly from disk (SLOW) - try index.meta.data-source=fileinmem in the index properties file. 1.9 GiB of memory would be required.
+Traceback (most recent call last):
+  File "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py", line 132, in _sweep_fn
+    metrics = compute_metrics(run_df, qrels)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py", line 93, in compute_metrics
+    agg = {
+          ^
+  File "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py", line 94, in <dictcomp>
+    str(r.measure): r.value
+        ^^^^^^^^^
+AttributeError: '_R' object has no attribute 'measure'

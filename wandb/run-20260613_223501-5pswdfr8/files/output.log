@@ -1,0 +1,10 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|██████████| 100/100 [00:00<00:00, 38657.18it/s]
+BiEncoder loaded: sentence-transformers/msmarco-distilbert-base-v4  |  device: mps
+Encoding 142 queries...
+Batches: 100%|██████████| 3/3 [00:02<00:00,  1.19it/s]
+Encoding 4929 document snippets...
+Batches: 100%|██████████| 78/78 [01:00<00:00,  1.29it/s]
+Scoring pairs: 100%|██████████| 7100/7100 [00:00<00:00, 109924.18it/s]
+Java started and loaded: pyterrier.java.colab, pyterrier.java, pyterrier.java.24, pyterrier.terrier.java [version=5.11 (build: craig.macdonald 2025-01-13 21:29), helper_version=0.0.8]
+model=msmarco-distilbert-base-v4  depth=50  RR@10=0.0441  nDCG@10=0.0599  R@100=0.1761

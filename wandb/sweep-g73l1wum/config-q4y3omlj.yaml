@@ -1,0 +1,6 @@
+wandb_version: 1
+
+b:
+  value: 0.3
+k1:
+  value: 1

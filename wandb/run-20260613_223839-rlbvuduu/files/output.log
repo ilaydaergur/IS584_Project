@@ -1,0 +1,8 @@
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 6681.93it/s]
+BiEncoder loaded: sentence-transformers/all-MiniLM-L6-v2  |  device: mps
+Encoding 142 queries...
+Batches: 100%|██████████| 3/3 [00:00<00:00,  5.92it/s]
+Encoding 4929 document snippets...
+Batches: 100%|██████████| 78/78 [00:10<00:00,  7.29it/s]
+Scoring pairs: 100%|██████████| 7100/7100 [00:00<00:00, 105438.25it/s]
+model=all-MiniLM-L6-v2  depth=50  RR@10=0.0470  nDCG@10=0.0675  R@100=0.1761

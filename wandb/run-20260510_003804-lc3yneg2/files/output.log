@@ -1,0 +1,16 @@
+Java started and loaded: pyterrier.java.colab, pyterrier.java, pyterrier.java.24, pyterrier.terrier.java [version=5.11 (build: craig.macdonald 2025-01-13 21:29), helper_version=0.0.8]
+[INFO] [starting] opening zip file
+[INFO] If you have a local copy of https://zenodo.org/records/13370657/files/test-2024.zip?download=1, you can symlink it here to avoid downloading it again: /Users/ilaydaergur/.ir_datasets/downloads/3d0a4d83957ee6a1398afefbc96162fa
+[INFO] [starting] https://zenodo.org/records/13370657/files/test-2024.zip?download=1
+[INFO] [finished] https://zenodo.org/records/13370657/files/test-2024.zip?download=1: [00:00] [262kB] [976kB/s]
+[INFO] [finished] opening zip file [617ms]                                                   
+Traceback (most recent call last):
+  File "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py", line 125, in _sweep_fn
+    topics, qrels = load_topics_and_qrels()
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py", line 52, in load_topics_and_qrels
+    qrels = dataset.get_qrels()
+            ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Caskroom/miniforge/base/envs/ai/lib/python3.11/site-packages/pyterrier/datasets/_irds.py", line 102, in get_qrels
+    raise NotImplementedError(f"{self._irds_id} doesn't support get_qrels")
+NotImplementedError: trec-tot/2024/test doesn't support get_qrels

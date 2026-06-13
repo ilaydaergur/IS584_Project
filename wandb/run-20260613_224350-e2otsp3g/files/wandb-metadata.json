@@ -1,0 +1,25 @@
+{
+  "os":  "macOS-26.4.1-arm64-arm-64bit",
+  "python":  "CPython 3.11.15",
+  "startedAt":  "2026-06-13T19:43:50.771745Z",
+  "args":  [
+    "--mode",
+    "best",
+    "--model",
+    "sentence-transformers/msmarco-distilbert-base-v4",
+    "--rerank_depth",
+    "50"
+  ],
+  "program":  "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_biencoder.py",
+  "codePath":  "src/run_biencoder.py",
+  "codePathLocal":  "src/run_biencoder.py",
+  "git":  {
+    "remote":  "https://github.com/ilaydaergur/IS584_Project.git",
+    "commit":  "537f40cc0bf3ba352bf66135ff76cd99825485c3"
+  },
+  "email":  "ilayda@ergur.net",
+  "root":  "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project",
+  "host":  "Mac.home",
+  "executable":  "/opt/homebrew/Caskroom/miniforge/base/envs/ai/bin/python",
+  "writerId":  "apdo2ft55090drdwlxsesr4tcljcs1du"
+}

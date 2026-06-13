@@ -1,0 +1,50 @@
+_wandb:
+    value:
+        cli_version: 0.26.1
+        e:
+            1v2hpq10o7f9zw3ds433apbw1f3zujdg:
+                apple: {}
+                args:
+                    - --mode
+                    - sweep
+                codePath: src/run_bm25.py
+                codePathLocal: src/run_bm25.py
+                cpu_count: 15
+                cpu_count_logical: 15
+                disk:
+                    /:
+                        total: "994610155520"
+                        used: "146797522944"
+                email: ilayda@ergur.net
+                executable: /opt/homebrew/Caskroom/miniforge/base/envs/ai/bin/python
+                git:
+                    commit: 938f7dec85cbff85ef455f9c09076b4bfb16353d
+                    remote: https://github.com/ilaydaergur/IS584_Project.git
+                host: Mac.home
+                memory:
+                    total: "25769803776"
+                os: macOS-26.4.1-arm64-arm-64bit
+                program: /Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py
+                python: CPython 3.11.15
+                root: /Users/ilaydaergur/Desktop/METU/IS584/IS584_Project
+                startedAt: "2026-05-09T22:06:44.130487Z"
+                writerId: 1v2hpq10o7f9zw3ds433apbw1f3zujdg
+        m: []
+        python_version: 3.11.15
+        t:
+            "1":
+                - 1
+            "2":
+                - 1
+            "3":
+                - 2
+                - 14
+                - 41
+            "4": 3.11.15
+            "5": 0.26.1
+            "12": 0.26.1
+            "13": darwin-arm64
+b:
+    value: 0.3
+k1:
+    value: 0.5

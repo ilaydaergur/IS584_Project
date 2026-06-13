@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py", line 123, in _sweep_fn
+    _init_pt()
+  File "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py", line 40, in _init_pt
+    pt.java.init()
+  File "/opt/homebrew/Caskroom/miniforge/base/envs/ai/lib/python3.11/site-packages/pyterrier/java/_utils.py", line 96, in init
+    _init()
+  File "/opt/homebrew/Caskroom/miniforge/base/envs/ai/lib/python3.11/site-packages/pyterrier/utils.py", line 23, in _wrapper
+    raise ValueError(f"{fn.__name__} has already been run")
+ValueError: _init has already been run

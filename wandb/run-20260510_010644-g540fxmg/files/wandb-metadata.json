@@ -1,0 +1,33 @@
+{
+  "os":  "macOS-26.4.1-arm64-arm-64bit",
+  "python":  "CPython 3.11.15",
+  "startedAt":  "2026-05-09T22:06:44.130487Z",
+  "args":  [
+    "--mode",
+    "sweep"
+  ],
+  "program":  "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project/src/run_bm25.py",
+  "codePath":  "src/run_bm25.py",
+  "codePathLocal":  "src/run_bm25.py",
+  "git":  {
+    "remote":  "https://github.com/ilaydaergur/IS584_Project.git",
+    "commit":  "938f7dec85cbff85ef455f9c09076b4bfb16353d"
+  },
+  "email":  "ilayda@ergur.net",
+  "root":  "/Users/ilaydaergur/Desktop/METU/IS584/IS584_Project",
+  "host":  "Mac.home",
+  "executable":  "/opt/homebrew/Caskroom/miniforge/base/envs/ai/bin/python",
+  "cpu_count":  15,
+  "cpu_count_logical":  15,
+  "disk":  {
+    "/":  {
+      "total":  "994610155520",
+      "used":  "146797522944"
+    }
+  },
+  "memory":  {
+    "total":  "25769803776"
+  },
+  "apple":  {},
+  "writerId":  "1v2hpq10o7f9zw3ds433apbw1f3zujdg"
+}
