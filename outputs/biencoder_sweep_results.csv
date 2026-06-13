@@ -1,0 +1,5 @@
+model,rerank_depth,RR@10,nDCG@10,R@100
+msmarco-distilbert-base-v4,100,0.0329,0.0420,0.2183
+msmarco-distilbert-base-v4,50,0.0441,0.0599,0.1761
+all-MiniLM-L6-v2,100,0.0534,0.0707,0.2183
+all-MiniLM-L6-v2,50,0.0470,0.0675,0.1761

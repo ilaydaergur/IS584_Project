@@ -1,0 +1,482 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+\graphicspath{{../figures/}}
+
+\begin{document}
+
+\title{Tip-of-the-Tongue Retrieval with Transformer-Based Reranking:\\
+BM25, Cross-Encoder, and Bi-Encoder Compared}
+
+\author{\IEEEauthorblockN{\.Ilayda Erg\"ur}
+\IEEEauthorblockA{Department of Multimedia Informatics\\
+Middle East Technical University\\
+Ankara, Turkey\\
+ilayda.ergur@metu.edu.tr}}
+
+\maketitle
+
+\begin{abstract}
+This paper presents a complete investigation of transformer-based reranking
+for Tip-of-the-Tongue (ToT) retrieval on the TREC-ToT 2024 dataset.
+Three retrieval systems are evaluated on the 2025/dev1 query set
+(142 queries, 3.18M Wikipedia documents):
+a BM25 baseline tuned via a Weights \& Biases parameter sweep,
+a cross-encoder reranker (\texttt{ms-marco-MiniLM-L-6-v2}),
+and a bi-encoder reranker (\texttt{all-MiniLM-L6-v2}).
+BM25 achieves the highest performance (RR@10~=~0.0751),
+while neither neural model significantly improves over it
+(Wilcoxon signed-rank: $p=0.1023$ and $p=0.3382$ respectively).
+Subgroup analysis reveals that neural models help on short queries
+but are consistently hurt on the long narratives that characterise the ToT task.
+Interpretability analysis via t-SNE embedding projection and sentence-level
+cross-encoder attribution identifies query truncation and
+semantic mismatch with MS-MARCO-trained models as the primary failure modes.
+All code and results are publicly available.
+\end{abstract}
+
+\begin{IEEEkeywords}
+tip-of-the-tongue retrieval, BM25, cross-encoder, bi-encoder, Wilcoxon test,
+interpretability, t-SNE, TREC, sentence transformers
+\end{IEEEkeywords}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Introduction}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Tip-of-the-Tongue (ToT) retrieval~\cite{trec-tot} targets a distinctive
+information need: the user recalls attributes of an entity but not its name,
+and provides a long narrative description to retrieve it.
+Compared with standard ad-hoc retrieval, ToT queries average 121--238 words,
+have near-zero lexical overlap with relevant Wikipedia documents, and
+describe entities using subjective memory cues rather than precise keywords.
+These properties make ToT an ideal stress test for transformer-based rerankers.
+
+We investigate three research questions (RQs):
+\begin{itemize}
+  \item \textbf{RQ1:} Does cross-encoder reranking significantly improve
+        retrieval over BM25 on ToT queries (Wilcoxon, $\alpha=0.05$)?
+  \item \textbf{RQ2:} Does query length moderate the reranker's gain,
+        given the 512-token input constraint?
+  \item \textbf{RQ3:} Does a bi-encoder---which avoids the truncation
+        problem by encoding queries and documents independently---perform
+        better than the cross-encoder on this task?
+\end{itemize}
+
+Phases~1 and 2 established the dataset characteristics and BM25+cross-encoder
+baseline.
+This report closes the loop by adding the bi-encoder (RQ3),
+conducting interpretability analysis, and performing systematic error analysis.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Dataset and Evaluation Setup}
+\label{sec:dataset}
+% ══════════════════════════════════════════════════════════════════════════════
+
+The TREC Tip-of-the-Tongue 2024 corpus~\cite{trec-tot} contains
+3{,}185{,}450 English Wikipedia documents (mean length: 6{,}700 words).
+We evaluate on the \texttt{trec-tot/2025/dev1} split (142 queries with
+public relevance judgements), accessed via \texttt{ir\_datasets}~\cite{irdatasets}.
+
+Three metrics are reported: \textbf{RR@10} (mean reciprocal rank at 10),
+\textbf{nDCG@10}, and \textbf{R@100} (recall in the top 100).
+RR@10 is the primary metric, as ToT is fundamentally a
+single-relevant-document task: the user wants to identify one forgotten item.
+All metrics are computed with \texttt{ir\_measures}~\cite{irm} via
+\texttt{pt.Experiment}.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Modeling}
+\label{sec:modeling}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{BM25 Baseline}
+
+BM25~\cite{bm25} was indexed with PyTerrier's \texttt{IterDictIndexer}
+over the full 3.18M-document corpus.
+A 2{,}000-character text snippet is stored per document as metadata,
+providing the rerankers with a passage for scoring without a second corpus pass.
+Retrieval returns 100 candidates per query.
+
+\subsection{Cross-Encoder Reranker}
+
+The cross-encoder \texttt{ms-marco-MiniLM-L-6-v2}~\cite{wang2020}
+concatenates each (query, document) pair and passes it through a 6-layer
+MiniLM model fine-tuned on MS-MARCO relevance labels.
+Because ToT queries average 121--238 words, fitting within the 512-token
+joint input limit requires truncating each query to its first 100 words,
+discarding up to 60\% of the narrative.
+
+\subsection{Bi-Encoder Reranker}
+
+The bi-encoder \texttt{all-MiniLM-L6-v2}~\cite{reimers2019} encodes
+queries and documents \emph{independently} into a shared 384-dimensional
+vector space; relevance is scored by cosine similarity.
+This avoids the 512-token joint-input bottleneck: the full 512-token
+budget is allocated separately to the query and to the document snippet,
+so no query truncation is required.
+Embeddings are L2-normalised; inference uses batch size 64 on MPS.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Experimentation and Tuning}
+\label{sec:exp}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{BM25 Parameter Sweep (Phase 2)}
+
+A grid sweep over $k_1 \in \{0.5, 1.0, 1.2, 1.5, 2.0\}$ and
+$b \in \{0.3, 0.5, 0.75, 1.0\}$ (20 runs) was logged to Weights \& Biases.
+The best configuration was $k_1=1.2$, $b=0.75$ (RR@10~=~0.0751),
+which is the commonly recommended BM25 default~\cite{bm25}.
+
+\subsection{Bi-Encoder Sweep (Phase 3)}
+
+A $2 \times 2$ sweep was run over two model architectures and two
+rerank depths; all four runs are logged to the same WANDB project.
+Table~\ref{tab:bisweep} shows the results.
+\texttt{all-MiniLM-L6-v2} at depth~100 achieves the best balance of
+RR@10 and R@100 and is used for all subsequent evaluation.
+
+\begin{table}[t]
+\caption{Bi-Encoder Sweep Results (RR@10 primary metric)}
+\label{tab:bisweep}
+\centering
+\begin{tabular}{lccc}
+\toprule
+Model & Depth & RR@10 & R@100 \\
+\midrule
+msmarco-distilbert-base-v4 & 100 & 0.0329 & 0.2183 \\
+msmarco-distilbert-base-v4 &  50 & 0.0441 & 0.1761 \\
+all-MiniLM-L6-v2           &  50 & 0.0470 & 0.1761 \\
+\textbf{all-MiniLM-L6-v2}  & \textbf{100} & \textbf{0.0534} & \textbf{0.2183} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Evaluation}
+\label{sec:eval}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Statistical significance is assessed with the two-sided Wilcoxon signed-rank
+test on paired per-query RR@10 scores~\cite{demsar2006}.
+This non-parametric test is appropriate for IR metrics, which are
+non-normal and heavily zero-inflated.
+Ties in the difference distribution are handled by the zero-method
+(pairs with identical scores are excluded from the ranking).
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Results}
+\label{sec:results}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Aggregate Metrics}
+
+Table~\ref{tab:aggregate} reports aggregate metrics for all three systems.
+Figure~\ref{fig:aggregate} visualises the comparison.
+BM25 achieves the highest scores across all metrics.
+The bi-encoder (RR@10~=~0.0534) outperforms the cross-encoder
+(RR@10~=~0.0463), consistent with the hypothesis that avoiding
+query truncation benefits the bi-encoder.
+R@100 is identical for BM25 and the depth-100 variants because
+all three systems draw from the same 100-candidate pool.
+
+\begin{table}[t]
+\caption{Aggregate Metrics on TREC-ToT 2025/dev1 (n=142)}
+\label{tab:aggregate}
+\centering
+\begin{tabular}{lccc}
+\toprule
+System & RR@10 & nDCG@10 & R@100 \\
+\midrule
+BM25 ($k_1$=1.2, $b$=0.75) & \textbf{0.0751} & \textbf{0.0812} & 0.2183 \\
+CrossEncoder (MiniLM-L-6-v2) & 0.0463 & 0.0635 & 0.2183 \\
+BiEncoder (MiniLM-L6-v2)     & 0.0534 & 0.0707 & \textbf{0.2183} \\
+\midrule
+$\Delta$ BiEnc $-$ BM25 & $-$0.0217 & $-$0.0105 & 0.0000 \\
+$\Delta$ BiEnc $-$ CrossEnc & $+$0.0072 & $+$0.0072 & 0.0000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{aggregate_comparison.png}
+  \caption{Aggregate retrieval metrics for all three systems on the
+           TREC-ToT 2025/dev1 evaluation set (142 queries).
+           BM25 leads on all metrics; the bi-encoder outperforms the
+           cross-encoder on RR@10 and nDCG@10.}
+  \label{fig:aggregate}
+\end{figure}
+
+\subsection{Statistical Testing (RQ1 and RQ3)}
+
+Table~\ref{tab:wilcoxon} shows the Wilcoxon signed-rank test results.
+Neither neural model significantly outperforms BM25 at $\alpha=0.05$.
+The cross-encoder is numerically worse (mean $\Delta=-0.029$, $p=0.1023$),
+confirming the Phase~2 finding.
+The bi-encoder is also worse than BM25 (mean $\Delta=-0.022$, $p=0.3382$)
+but better than the cross-encoder ($\Delta=+0.007$), with neither
+difference reaching significance.
+
+\textbf{Answer to RQ1:} Cross-encoder reranking does not significantly
+improve over BM25 ($p=0.1023$).
+
+\textbf{Answer to RQ3:} Bi-encoder reranking does not significantly
+improve over BM25 either ($p=0.3382$), though it outperforms the
+cross-encoder numerically, supporting the hypothesis that query
+truncation is the main bottleneck in the cross-encoder.
+
+\begin{table}[t]
+\caption{Wilcoxon Signed-Rank Test Results (RR@10, two-sided, $\alpha=0.05$)}
+\label{tab:wilcoxon}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Comparison & $n$ & Mean $\Delta$ & $W$ & $p$ \\
+\midrule
+CrossEnc vs.\ BM25 & 142 & $-$0.0289 & 54.50 & 0.1023 \\
+BiEnc vs.\ BM25    & 142 & $-$0.0217 & 88.00 & 0.3382 \\
+BiEnc vs.\ CrossEnc & 142 & $+$0.0072 & 124.50 & 0.6811 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Subgroup Analysis (RQ2)}
+
+Table~\ref{tab:rq2} and Figure~\ref{fig:subgroup} show per-subgroup
+RR@10 split at the median query length (121 words).
+BM25 is strongest on long queries (RR@10~=~0.1020), where both neural
+models lose substantially (CrossEnc: 0.0306, BiEnc: 0.0603).
+On short queries, the cross-encoder narrowly surpasses BM25
+(0.0602 vs.\ 0.0511), while the bi-encoder falls below it (0.0473).
+
+\textbf{Answer to RQ2:} Query length strongly moderates neural reranker
+effectiveness. The cross-encoder is hurt most on long queries due to
+truncation; the bi-encoder is also hurt, but less severely, as it
+can encode the full query independently.
+
+\begin{table}[t]
+\caption{RQ2: Mean RR@10 by Query Length Subgroup}
+\label{tab:rq2}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Subgroup & $n$ & BM25 & CrossEnc & BiEnc \\
+\midrule
+Long queries ($>$121 words) & 67 & \textbf{0.1020} & 0.0306 & 0.0603 \\
+Short queries ($\leq$121 words) & 75 & 0.0511 & \textbf{0.0602} & 0.0473 \\
+\midrule
+All queries & 142 & \textbf{0.0751} & 0.0463 & 0.0534 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{subgroup_comparison.png}
+  \caption{Mean RR@10 by query length subgroup for all three systems.
+           BM25 dominates on long queries; the cross-encoder and bi-encoder
+           perform similarly on short queries.}
+  \label{fig:subgroup}
+\end{figure}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Interpretability and Error Analysis}
+\label{sec:interp}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Bi-Encoder Embedding Space (t-SNE)}
+
+Figure~\ref{fig:tsne} projects bi-encoder embeddings of all 142 queries
+and their top-1 retrieved documents into 2D using t-SNE~\cite{maaten2008}.
+Queries (squares) and their top-1 documents (circles / triangles)
+are broadly separated in the embedding space, indicating that
+\texttt{all-MiniLM-L6-v2}---trained on short MS-MARCO queries---does
+not place these long narrative descriptions close to their relevant
+Wikipedia documents.
+Points where the top-1 retrieved document is relevant (green) are
+spread throughout the space rather than clustering near their query,
+confirming that the bi-encoder's success on individual queries is
+not driven by systematic semantic proximity.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{tsne_embedding_space.png}
+  \caption{t-SNE projection of bi-encoder embeddings for all 142 queries
+           (squares, blue) and their top-1 retrieved documents:
+           relevant (circles, green) and irrelevant (triangles, red).
+           The broad separation between queries and documents suggests
+           that the model trained on short MS-MARCO queries does not
+           generalise to 121--238 word ToT narratives.}
+  \label{fig:tsne}
+\end{figure}
+
+\subsection{Cross-Encoder Sentence Attribution}
+
+To understand \emph{which parts} of a ToT query drive cross-encoder
+decisions, we apply a sentence-level ablation: each sentence is removed
+in turn and the score drop is computed.
+For queries where the cross-encoder wins, the first 1--2 sentences
+(which survive the 100-word truncation) carry the highest attribution.
+For queries where the cross-encoder loses, sentences in the middle and end
+of the query---systematically discarded by truncation---show the highest
+scores when retained, confirming that truncation removes the
+most discriminative content.
+
+\subsection{Error Analysis}
+
+Systematic failure analysis across all three systems shows that
+117 of 142 queries (82.4\%) result in \emph{all systems failing}
+(no relevant document in the top 10).
+Only 13 queries (9.2\%) are answered correctly by all systems,
+and 11 queries (7.7\%) are answered only by neural models
+(``Neural only'').
+Crucially, just 1 query (0.7\%) is answered by BM25 but not by any
+neural model (``BM25 only''), demonstrating that neural reranking
+rarely introduces catastrophic failures on queries BM25 already handles.
+
+The dominant failure mode is that the relevant document is not in
+the BM25 top-100 candidate pool (R@100~=~0.218 means 78\% of queries
+have no relevant document even in the top 100).
+Both rerankers are fundamentally limited by this ceiling.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Discussion}
+\label{sec:discussion}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Three findings emerge consistently across all experiments.
+
+\textbf{BM25 is a strong baseline for ToT.}
+Despite having no semantic component, BM25 outperforms both neural
+rerankers. This is because the BM25 first stage---not the reranker---is
+the bottleneck: if a relevant document is not in the top-100 candidates,
+no reranker can recover it.
+
+\textbf{Query length is the key modulator of neural reranker effectiveness.}
+The cross-encoder is harmed most by truncation on long queries.
+The bi-encoder mitigates this by encoding independently, but still
+cannot overcome the domain mismatch between MS-MARCO short queries
+and ToT narratives of 121--238 words.
+
+\textbf{Dense first-stage retrieval remains the open problem.}
+The error analysis shows that 78\% of failures arise from the R@100
+ceiling. Replacing BM25 with a full dense index---encoding all 3.18M
+documents with a bi-encoder and performing approximate nearest-neighbour
+search---is the highest-priority direction for future work~\cite{karpukhin2020,thakur2021}.
+Models that handle long-context queries, such as those fine-tuned on
+narrative retrieval tasks, are also expected to improve over
+MS-MARCO-trained models~\cite{bhatt2024}.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Conclusion}
+\label{sec:conclusion}
+% ══════════════════════════════════════════════════════════════════════════════
+
+We evaluated three retrieval systems on the TREC Tip-of-the-Tongue task:
+BM25 ($k_1=1.2$, $b=0.75$), a cross-encoder reranker, and a bi-encoder
+reranker, all against the same 142-query 2025/dev1 evaluation set.
+BM25 achieves the best aggregate performance (RR@10~=~0.0751);
+neither neural model improves significantly over it (Wilcoxon $p > 0.10$).
+Subgroup analysis confirms that neural rerankers are systematically
+hurt on the long narratives that define the ToT task.
+Interpretability analysis reveals that the models fail because they
+were trained on short keyword queries and cannot represent the full
+semantic content of ToT descriptions.
+The path forward is dense first-stage retrieval with models
+trained---or fine-tuned---on long narrative queries.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section*{Repository}
+% ══════════════════════════════════════════════════════════════════════════════
+
+All code and results: \url{https://github.com/ilaydaergur/IS584_Project}.\\
+WANDB project: \url{https://wandb.ai/ilaydaergur-metu-middle-east-technical-university/is584-tot-retrieval}.
+
+\section*{AI Use Statement}
+Claude Sonnet 4.6 was used to assist with code implementation and LaTeX editing. All experimental design, analysis, and written conclusions are the author's own.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\begin{thebibliography}{99}
+
+\bibitem{bm25}
+S.~Robertson and H.~Zaragoza,
+``The Probabilistic Relevance Framework: BM25 and Beyond,''
+\textit{Foundations and Trends in Information Retrieval},
+vol.~3, no.~4, pp.~333--389, 2009.
+
+\bibitem{wang2020}
+W.~Wang, F.~Wei, L.~Dong, H.~Tan, N.~Du, and M.~Zhou,
+``MiniLM: Deep Self-Attention Distillation for Task-Agnostic Compression
+of Pre-Trained Transformers,''
+in \textit{Proc. NeurIPS}, 2020.
+
+\bibitem{reimers2019}
+N.~Reimers and I.~Gurevych,
+``Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks,''
+in \textit{Proc. EMNLP-IJCNLP}, 2019, pp.~3982--3992.
+
+\bibitem{karpukhin2020}
+V.~Karpukhin et~al.,
+``Dense Passage Retrieval for Open-Domain Question Answering,''
+in \textit{Proc. EMNLP}, 2020, pp.~6769--6781.
+
+\bibitem{thakur2021}
+N.~Thakur, N.~Reimers, A.~R{\"u}ckl{\'e}, A.~Srivastava, and I.~Gurevych,
+``BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of
+Information Retrieval Models,''
+in \textit{Proc. NeurIPS Datasets and Benchmarks}, 2021.
+
+\bibitem{lin2021}
+J.~Lin, R.~Nogueira, and A.~Yates,
+``Pretrained Transformers for Text Ranking: BERT and Beyond,''
+\textit{Synthesis Lectures on Human Language Technologies},
+vol.~14, no.~4, pp.~1--325, 2021.
+
+\bibitem{demsar2006}
+J.~Dem{\v{s}}ar,
+``Statistical Comparisons of Classifiers over Multiple Data Sets,''
+\textit{Journal of Machine Learning Research},
+vol.~7, pp.~1--30, 2006.
+
+\bibitem{maaten2008}
+L.~van der Maaten and G.~Hinton,
+``Visualizing Data using t-SNE,''
+\textit{Journal of Machine Learning Research},
+vol.~9, pp.~2579--2605, 2008.
+
+\bibitem{trec-tot}
+R.~Bhatt, A.~Yates, D.~Metzler, C.~Clarke, and B.~Croft,
+``Overview of the TREC 2024 Tip-of-the-Tongue Track,''
+in \textit{Proc. TREC}, 2024.
+
+\bibitem{bhatt2024}
+R.~Bhatt et~al.,
+``TREC Tip-of-the-Tongue 2024: Task Design, Dataset, and Baselines,''
+in \textit{Proc. TREC}, 2024.
+
+\bibitem{irdatasets}
+C.~Mackie, S.~MacAvaney, and A.~Macdonald,
+``\texttt{ir\_datasets}: A Streamlined Access Method for Information
+Retrieval Test Collections,''
+in \textit{Proc. ACM SIGIR}, 2021, pp.~2292--2300.
+
+\bibitem{irm}
+S.~MacAvaney, C.~Macdonald, and I.~Ounis,
+``Streamlining Evaluation with \texttt{ir-measures},''
+in \textit{Proc. ECIR}, 2022, pp.~305--310.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,8 +1,8 @@
 """
-Evaluation utilities: statistical testing and RQ2 subgroup analysis.
+Evaluation utilities: statistical testing and RQ2/RQ3 subgroup analysis.
 
-Runs a Wilcoxon signed-rank test (RQ1) and a stratified comparison of
-BM25 vs. cross-encoder reranker on long and low keyword-overlap queries (RQ2).
+Runs Wilcoxon signed-rank tests (RQ1: CrossEncoder vs BM25,
+RQ3: BiEncoder vs BM25) and a stratified comparison by query length (RQ2).
 
 Usage:
     python src/evaluate.py                    # uses RR@10 by default
@@ -11,11 +11,12 @@ Usage:
 Inputs:
     - ./outputs/bm25_per_query.csv
     - ./outputs/reranker_per_query.csv
-    - ./outputs/bm25_run.csv           (for keyword-overlap computation)
-    - TREC-ToT 2024 test queries via ir_datasets
+    - ./outputs/biencoder_per_query.csv  (optional, for RQ3)
+    - ./outputs/bm25_run.csv             (for keyword-overlap computation)
+    - TREC-ToT 2025/dev1 queries via ir_datasets
 Outputs:
     - Wilcoxon test results printed to stdout
-    - ./outputs/rq2_analysis.csv       per-query analysis with subgroup flags
+    - ./outputs/rq2_analysis.csv         per-query analysis with subgroup flags
 """
 
 import os
@@ -221,9 +222,51 @@ def rq2_analysis(metric: str = "RR@10") -> pd.DataFrame:
 
 # ── Entry point ────────────────────────────────────────────────────────────────
 
+def rq2_analysis_extended(metric: str = "RR@10") -> pd.DataFrame:
+    """Extend rq2_analysis CSV with bi-encoder per-query scores if available.
+
+    Args:
+        metric: Metric column name (e.g. 'RR@10')
+    Returns:
+        Merged DataFrame with bm25, reranker, and (optionally) biencoder columns
+    """
+    merged = rq2_analysis(metric)  # writes rq2_analysis.csv with bm25 + reranker
+
+    bi_path = f"{RESULTS_DIR}/biencoder_per_query.csv"
+    if not os.path.exists(bi_path):
+        return merged
+
+    bi_scores = load_per_query(bi_path, metric)
+    bi_scores.index = bi_scores.index.astype(str)
+    merged["qid"] = merged["qid"].astype(str)
+    merged = merged.merge(
+        bi_scores.rename("biencoder"),
+        left_on="qid", right_index=True, how="left",
+    )
+
+    # Print extended subgroup table
+    subgroups = [
+        ("Long queries   (> median length)", merged["long_query"]),
+        ("Short queries  (≤ median length)", ~merged["long_query"]),
+    ]
+    print(f"\n=== RQ2 Extended: Subgroup Analysis with BiEncoder ({metric}) ===")
+    for label, mask in subgroups:
+        sub = merged[mask].dropna(subset=["bm25", "reranker"])
+        mean_bm25 = sub["bm25"].mean()
+        mean_rr   = sub["reranker"].mean()
+        mean_bi   = sub["biencoder"].mean() if "biencoder" in sub else float("nan")
+        print(
+            f"  {label}  (n={len(sub):3d}): "
+            f"BM25={mean_bm25:.4f}  CrossEnc={mean_rr:.4f}  BiEnc={mean_bi:.4f}"
+        )
+
+    merged.to_csv(f"{RESULTS_DIR}/rq2_analysis.csv", index=False)
+    return merged
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Statistical evaluation and subgroup analysis for TREC-ToT 2024"
+        description="Statistical evaluation and subgroup analysis for TREC-ToT 2025/dev1"
     )
     parser.add_argument(
         "--metric", type=str, default="RR@10",
@@ -232,8 +275,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    bm25_path = f"{RESULTS_DIR}/bm25_per_query.csv"
+    bm25_path     = f"{RESULTS_DIR}/bm25_per_query.csv"
     reranker_path = f"{RESULTS_DIR}/reranker_per_query.csv"
+    bi_path       = f"{RESULTS_DIR}/biencoder_per_query.csv"
 
     missing = [p for p in [bm25_path, reranker_path] if not os.path.exists(p)]
     if missing:
@@ -242,7 +286,16 @@ if __name__ == "__main__":
             "\nRun run_bm25.py and run_reranker.py first."
         )
     else:
-        bm25_scores = load_per_query(bm25_path, args.metric)
+        bm25_scores     = load_per_query(bm25_path, args.metric)
         reranker_scores = load_per_query(reranker_path, args.metric)
+
+        # RQ1: CrossEncoder vs BM25
         wilcoxon_test(reranker_scores, bm25_scores, "CrossEncoder", "BM25")
-        rq2_analysis(args.metric)
+
+        # RQ3: BiEncoder vs BM25 (if available)
+        if os.path.exists(bi_path):
+            bi_scores = load_per_query(bi_path, args.metric)
+            wilcoxon_test(bi_scores, bm25_scores, "BiEncoder", "BM25")
+            wilcoxon_test(bi_scores, reranker_scores, "BiEncoder", "CrossEncoder")
+
+        rq2_analysis_extended(args.metric)

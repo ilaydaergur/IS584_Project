@@ -1,0 +1,43 @@
+qid,label,sentence_idx,sentence,full_score,ablated_score,score_drop
+134,Win,0,90s kids movie about swamp monster .,0.8346846103668213,-5.079347133636475,5.914031744003296
+134,Win,1,This has eluded me and my brother for years.,0.8346846103668213,1.9289844036102295,-1.0942997932434082
+134,Win,2,All we can remember is that it was a kid/young teen movie/tv movie about kids that discover a lizard monster in a swamp/forest.,0.8346846103668213,-1.4667565822601318,2.301441192626953
+134,Win,3,There’s a scene where they skate over an alligator.,0.8346846103668213,0.019098684191703796,0.8155859261751175
+134,Win,4,They also sit on a water tower and drink grape soda I believe.,0.8346846103668213,-0.04983346909284592,0.8845180794596672
+134,Win,5,I know it’s a long shot.,0.8346846103668213,0.2566263973712921,0.5780582129955292
+134,Win,6,That’s literally all we can remember.,0.8346846103668213,0.159135639667511,0.6755489706993103
+682,Win,0,Please help me .,-6.151995658874512,-5.556098937988281,-0.5958967208862305
+682,Win,1,Im looking for the title of a movie which Im guessing was made in the late 1980’s.,-6.151995658874512,-5.015157699584961,-1.1368379592895508
+682,Win,2,"American movie, action comedy I dont have the names of the two actresses who played the mane roles but they werent popular or well known actresses.",-6.151995658874512,-5.926609516143799,-0.2253861427307129
+682,Win,3,"Brunette lady cop, comfortable in tracsuit pants, has to protect a blonde rich spoilt girl.",-6.151995658874512,-6.068526268005371,-0.08346939086914062
+682,Win,4,"They start out bumping heads, the blonde washes her hair with dog shampoo, puts pantihose in the freezer and throws her underwear away instead of just adding it to laundry.",-6.151995658874512,-6.630291938781738,0.47829627990722656
+682,Win,5,The brunette cop needs to go undercover and she is seen wearing a coctail dress.,-6.151995658874512,-6.7541279792785645,0.6021323204040527
+682,Win,6,The two eventually become friends.,-6.151995658874512,-6.151995658874512,0.0
+682,Win,7,"That is all I can remember, please help me",-6.151995658874512,-6.151995658874512,0.0
+214,Win,0,Does anyone remember this 80’s Sci-Fi miniseries?,-2.6849026679992676,-4.302187442779541,1.6172847747802734
+214,Win,1,There was a TV movie/miniseries from the 80’s that I’m trying to remember the name of.,-2.6849026679992676,-3.8273887634277344,1.1424860954284668
+214,Win,2,It was in English and in color.,-2.6849026679992676,-3.2528696060180664,0.5679669380187988
+214,Win,3,"I could’ve sworn it starred Michael Douglas, and possibly Daryl Hannah or Kim Basinger.",-2.6849026679992676,-3.0663485527038574,0.38144588470458984
+214,Win,4,The woman was an alien who crash landed on Earth to escape another alien creature (not in human form) who was hunting her.,-2.6849026679992676,-4.329819679260254,1.6449170112609863
+214,Win,5,She ends up seducing the man in order to gain his help in destroying the creature.,-2.6849026679992676,-3.7435197830200195,1.058617115020752
+214,Win,6,The final showdown occurred in either a sewer or a subway train tunnel.,-2.6849026679992676,-2.676156520843506,-0.008746147155761719
+888,Loss,0,Romance Triangle .,-3.1102523803710938,-2.833035945892334,-0.27721643447875977
+888,Loss,1,I saw this movie on TV years ago.,-3.1102523803710938,-4.693045139312744,1.5827927589416504
+888,Loss,2,It looked like it was made in the late 90s maybe early 2000s.,-3.1102523803710938,-2.128897190093994,-0.9813551902770996
+888,Loss,3,It’s about a guy and 2 girls.,-3.1102523803710938,-3.592043399810791,0.48179101943969727
+888,Loss,4,The guy is like a cartoonist.,-3.1102523803710938,-2.7534632682800293,-0.35678911209106445
+888,Loss,5,Very important detail for the ending.,-3.1102523803710938,-2.850461721420288,-0.25979065895080566
+888,Loss,6,So the guy is interested in 1 girl and his friend (2nd girl) helps them get together.,-3.1102523803710938,-2.7911057472229004,-0.31914663314819336
+888,Loss,7,In the process they fall in love.,-3.1102523803710938,-3.0682389736175537,-0.04201340675354004
+888,Loss,8,But it don’t last because like I said he gets the girl of his “dreams” only to realize towards the end he loves his friend.,-3.1102523803710938,-3.261049270629883,0.15079689025878906
+888,Loss,9,So now the first girl helps him get his friend back.,-3.1102523803710938,-2.615339517593384,-0.49491286277770996
+888,Loss,10,The ending of the movie has him drawing up a cartoon of him and her being together which he shows on a film projector outside her window.,-3.1102523803710938,-3.1102523803710938,0.0
+888,Loss,11,Making her laugh she runs down from her apartment to him and… Well you know.,-3.1102523803710938,-3.1102523803710938,0.0
+895,Loss,0,Suburban Cul-de-Sac Locked by Military Looking for Escaped Monster .,-3.3611340522766113,-6.759311676025391,3.3981776237487793
+895,Loss,1,"If I recall, a military experiment (monster) escaped and was tracked to a suburban cul-de-sac by soldiers.",-3.3611340522766113,-7.029792308807373,3.6686582565307617
+895,Loss,2,I believe this was in Ireland or England.,-3.3611340522766113,-3.6429872512817383,0.28185319900512695
+895,Loss,3,Area was locked down as the monster went house to house and killed the civilians.,-3.3611340522766113,-5.188434600830078,1.8273005485534668
+786,Loss,0,Thriller movie about disappearance .,-2.4795851707458496,-2.1046910285949707,-0.3748941421508789
+786,Loss,1,"ok, this movie is about a group of young people (3 girls and 1 boy) (the boy lead the camera), in vacation they go to a house in the forest, in the way to that house, a van is chasing them in the road, later the van show in the place they eating.",-2.4795851707458496,-4.808775424957275,2.329190254211426
+786,Loss,2,"they arrive to the house, but a days after, knock the door and leave a vhs with a film: one person enter the house and shoot while the group is sleeping, after that cut light, and the people of the van, get in the house I think that they never appear again.",-2.4795851707458496,-3.6404430866241455,1.160857915878296
+786,Loss,3,I saw a years ago In English Was a movie In color,-2.4795851707458496,-2.4795851707458496,0.0
